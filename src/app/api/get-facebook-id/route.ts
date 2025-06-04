@@ -5,20 +5,6 @@ export const runtime = "nodejs";
 const delay = (m: number) => new Promise((r) => setTimeout(r, m));
 const providers = [
   {
-    name: "duykhoa",
-    method: "POST" as const,
-    url: "https://duykhoa.com/assets/ajax/get_uid.php",
-    buildBody: (link: string) => {
-      const fd = new FormData();
-      fd.append("link", link);
-      return fd;
-    },
-    parseId: (data: any) => data.uid,
-    success: (data: any) => data.code === 200 && /^\d+$/.test(data.uid),
-    isEmpty: (data: any) =>
-      data.msg === "Nhập sai đường dẫn link url hoặc chọn sai loại.",
-  },
-  {
     name: "ffb", //Cái ffb này xịn nhất
     method: "GET" as const,
     url: (link: string) => `https://ffb.vn/api/tool/get-id-fb?idfb=${link}`,
@@ -69,7 +55,21 @@ const providers = [
     success: (data: any) => /^\d+$/.test(data.id),
     isEmpty: (data: any) =>
       data.msg === "Nhập sai đường dẫn link url hoặc chọn sai loại.",
-  }
+  },
+  {
+    name: "duykhoa",
+    method: "POST" as const,
+    url: "https://duykhoa.com/assets/ajax/get_uid.php",
+    buildBody: (link: string) => {
+      const fd = new FormData();
+      fd.append("link", link);
+      return fd;
+    },
+    parseId: (data: any) => data.uid,
+    success: (data: any) => data.code === 200 && /^\d+$/.test(data.uid),
+    isEmpty: (data: any) =>
+      data.msg === "Nhập sai đường dẫn link url hoặc chọn sai loại.",
+  },
 ];
 
 export async function POST(req: NextRequest) {
