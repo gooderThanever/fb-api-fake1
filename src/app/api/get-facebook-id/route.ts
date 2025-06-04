@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const delay = (m: number) => new Promise((r) => setTimeout(r, m));
 const providers = [
   {
     name: "ffb", //Cái ffb này xịn nhất
@@ -73,45 +72,33 @@ const providers = [
 ];
 
 export async function POST(req: NextRequest) {
-  const { linkFacebook } = (await req.json()) as {
-    linkFacebook: {
-      value: string;
-      row: number;
-    }[];
+  const { linkFacebook, caseRun } = (await req.json()) as {
+    linkFacebook: string;
+    caseRun: number;
   };
+  const sequence = [
+    ...providers.slice(caseRun),
+    ...providers.slice(0, caseRun),
+  ];
 
-  const results: { id: string; row: number }[] = await Promise.all(
-    linkFacebook.map(async (link, index) => {
-      const sequence = [
-        ...providers.slice(index - 1),
-        ...providers.slice(0, index - 1),
-      ];
-      for (let i = 0; i < sequence.length; i++) {
-        const { url, method, buildBody, parseId, success, isEmpty } =
-          sequence[i];
-        const endpoint = typeof url === "function" ? url(link.value) : url;
-        const init: RequestInit = {
-          method,
-          body: method === "POST" ? buildBody(link.value) : undefined,
-        };
+  for (let i = 0; i < sequence.length; i++) {
+    const { url, method, buildBody, parseId, success, isEmpty } = sequence[i];
+    const endpoint = typeof url === "function" ? url(linkFacebook) : url;
+    const init: RequestInit = {
+      method,
+      body: method === "POST" ? buildBody(linkFacebook) : undefined,
+    };
+    try {
+      const res = await fetch(endpoint, init);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const id = parseId(data);
+      if (success(data)) {
+        return NextResponse.json({ status: true, id }, { status: 200 });
+      } else if (isEmpty(data))
+        return NextResponse.json({ status: true, id: "" }, { status: 200 });
+    } catch {}
+  }
 
-        try {
-          const startTime = Date.now();
-          const res = await fetch(endpoint, init);
-          if (!res.ok) continue;
-          const data = await res.json();
-          const id = parseId(data);
-          if (success(data)) {
-            const elapsed = Date.now() - startTime;
-            if (elapsed < 1000) await delay(1000 - elapsed);
-            if (i !== 0 && elapsed < 2000) await delay(2000 - elapsed);
-            return { id, row: link.row };
-          } else if (isEmpty(data)) return { id: "", row: link.row };
-        } catch {}
-      }
-      return { id: "", row: link.row };
-    })
-  );
-
-  return NextResponse.json({ status: true, data: results }, { status: 200 });
+  return NextResponse.json({ status: true, id: "" }, { status: 200 });
 }
